@@ -19,7 +19,7 @@ export default function DashboardLayout({
             {/* Sidebar */}
             <aside className="w-64 bg-white shadow-md flex flex-col">
                 <div className="p-6 border-b">
-                    <h1 className="text-xl font-bold text-gray-800">Admin Panel</h1>
+                    <h1 className="text-xl font-bold text-gray-800">管理后台</h1>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2">
@@ -28,14 +28,28 @@ export default function DashboardLayout({
                         className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                     >
                         <LayoutDashboard className="w-5 h-5 mr-3" />
-                        Dashboard
+                        仪表盘
                     </Link>
                     <Link
-                        href="/dashboard/items"
+                        href="/dashboard/gold-price"
                         className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                     >
-                        <Package className="w-5 h-5 mr-3" />
-                        Items
+                        <span className="w-5 h-5 mr-3 flex items-center justify-center font-bold text-yellow-600">¥</span>
+                        每日金价
+                    </Link>
+                    <Link
+                        href="/dashboard/tabs"
+                        className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                        <span className="w-5 h-5 mr-3 flex items-center justify-center font-bold text-blue-600">T</span>
+                        分类管理
+                    </Link>
+                    <Link
+                        href="/dashboard/beads"
+                        className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                        <span className="w-5 h-5 mr-3 flex items-center justify-center font-bold text-purple-600">B</span>
+                        珠子管理
                     </Link>
                 </nav>
 
@@ -46,7 +60,7 @@ export default function DashboardLayout({
                             className="flex items-center w-full px-4 py-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
                         >
                             <LogOut className="w-5 h-5 mr-3" />
-                            Logout
+                            退出登录
                         </button>
                     </form>
                 </div>

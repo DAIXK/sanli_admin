@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Lock, User } from 'lucide-react';
 
 export default function LoginPage() {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('admin');
+    const [password, setPassword] = useState('admin123');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -41,8 +41,8 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
             <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
                 <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-gray-900">Admin Login</h1>
-                    <p className="text-gray-600 mt-2">Sign in to access the dashboard</p>
+                    <h1 className="text-2xl font-bold text-gray-900">管理后台登录</h1>
+                    <p className="text-gray-600 mt-2">请登录以访问管理面板</p>
                 </div>
 
                 {error && (
@@ -54,7 +54,7 @@ export default function LoginPage() {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Username
+                            用户名
                         </label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -64,8 +64,8 @@ export default function LoginPage() {
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Enter username"
+                                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                                placeholder="输入用户名"
                                 required
                             />
                         </div>
@@ -73,7 +73,7 @@ export default function LoginPage() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Password
+                            密码
                         </label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -83,8 +83,8 @@ export default function LoginPage() {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Enter password"
+                                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                                placeholder="输入密码"
                                 required
                             />
                         </div>
@@ -95,12 +95,12 @@ export default function LoginPage() {
                         disabled={loading}
                         className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {loading ? 'Signing in...' : 'Sign In'}
+                        {loading ? '登录中...' : '登录'}
                     </button>
                 </form>
 
                 <div className="mt-6 text-center text-sm text-gray-500">
-                    <p>Default credentials: admin / admin123</p>
+                    <p>默认账号: admin / admin123</p>
                 </div>
             </div>
         </div>
