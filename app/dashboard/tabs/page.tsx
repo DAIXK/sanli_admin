@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Eye, EyeOff } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Button, Table, Tag, Switch, Space, Modal, Form, Input, InputNumber, Upload, Typography, message } from 'antd';
+import { PlusOutlined, UploadOutlined, EditOutlined, DeleteOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import type { RcFile } from 'antd/es/upload';
 
 interface Tab {
     id: string;
@@ -12,24 +14,23 @@ interface Tab {
     createdAt: string;
 }
 
+const { Title, Paragraph } = Typography;
+
 export default function TabsPage() {
     const [tabs, setTabs] = useState<Tab[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
-
-    // Form State
-    const [name, setName] = useState('');
-    const [isVisible, setIsVisible] = useState(true);
-    const [maxBeads, setMaxBeads] = useState(0);
-    const [model, setModel] = useState('');
+    const [modalOpen, setModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [form] = Form.useForm();
 
     useEffect(() => {
         fetchTabs();
     }, []);
 
     async function fetchTabs() {
+        setLoading(true);
         try {
             const res = await fetch('/api/tabs');
             if (res.ok) {
@@ -38,243 +39,229 @@ export default function TabsPage() {
             }
         } catch (error) {
             console.error('Failed to fetch tabs', error);
+            message.error('获取分类失败');
         } finally {
             setLoading(false);
         }
     }
 
-    async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const form = new FormData();
-        form.append('file', file);
-
+    async function uploadModel(file: RcFile) {
+        const formData = new FormData();
+        formData.append('file', file);
+        setUploading(true);
         try {
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: form,
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                setModel(data.url);
-            } else {
-                alert('上传失败');
-            }
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('上传失败');
+            const data = await res.json();
+            form.setFieldsValue({ model: data.url });
+            message.success('模型上传成功');
         } catch (error) {
             console.error('Upload error', error);
-            alert('上传出错');
+            message.error('模型上传失败');
+        } finally {
+            setUploading(false);
         }
     }
 
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        if (!name) return;
-
-        setSubmitting(true);
+    async function handleSubmit() {
         try {
+            const values = await form.validateFields();
+            setSubmitting(true);
             const url = editingId ? `/api/tabs/${editingId}` : '/api/tabs';
             const method = editingId ? 'PUT' : 'POST';
 
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, isVisible, maxBeads, model }),
+                body: JSON.stringify({
+                    name: values.name,
+                    isVisible: values.isVisible ?? true,
+                    maxBeads: Number(values.maxBeads) || 0,
+                    model: values.model || '',
+                }),
             });
 
             if (res.ok) {
-                resetForm();
+                message.success(editingId ? '分类已更新' : '分类已创建');
+                setModalOpen(false);
+                setEditingId(null);
+                form.resetFields();
                 fetchTabs();
+            } else {
+                message.error('保存失败');
             }
         } catch (error) {
+            if ((error as any).errorFields) return; // 表单校验未通过
             console.error('Failed to save tab', error);
+            message.error('保存失败');
         } finally {
             setSubmitting(false);
         }
     }
 
-    async function handleDelete(id: string) {
-        if (!confirm('确定要删除吗？这可能会影响关联的珠子。')) return;
-
-        try {
-            const res = await fetch(`/api/tabs/${id}`, {
-                method: 'DELETE',
-            });
-
-            if (res.ok) {
-                fetchTabs();
-            }
-        } catch (error) {
-            console.error('Failed to delete tab', error);
-        }
+    function openCreate() {
+        setEditingId(null);
+        form.resetFields();
+        form.setFieldsValue({ isVisible: true, maxBeads: 0 });
+        setModalOpen(true);
     }
 
     function startEdit(tab: Tab) {
-        setName(tab.name);
-        setIsVisible(tab.isVisible);
-        setMaxBeads(tab.maxBeads || 0);
-        setModel(tab.model || '');
         setEditingId(tab.id);
-        setShowForm(true);
+        form.setFieldsValue({
+            name: tab.name,
+            isVisible: tab.isVisible,
+            maxBeads: tab.maxBeads,
+            model: tab.model,
+        });
+        setModalOpen(true);
     }
 
-    function resetForm() {
-        setName('');
-        setIsVisible(true);
-        setMaxBeads(0);
-        setModel('');
-        setEditingId(null);
-        setShowForm(false);
+    function handleDelete(tab: Tab) {
+        Modal.confirm({
+            title: '确认删除该分类？',
+            content: '删除后可能影响关联的珠子展示，请谨慎操作。',
+            okText: '删除',
+            okType: 'danger',
+            centered: true,
+            onOk: async () => {
+                try {
+                    const res = await fetch(`/api/tabs/${tab.id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        message.success('已删除');
+                        fetchTabs();
+                    } else {
+                        message.error('删除失败');
+                    }
+                } catch (error) {
+                    console.error('Failed to delete tab', error);
+                    message.error('删除失败');
+                }
+            },
+        });
     }
+
+    const columns = [
+        {
+            title: '名称',
+            dataIndex: 'name',
+        },
+        {
+            title: '最大珠子数',
+            dataIndex: 'maxBeads',
+            width: 120,
+            align: 'center' as const,
+        },
+        {
+            title: '模型',
+            dataIndex: 'model',
+            width: 120,
+            render: (value: string) =>
+                value ? <Tag color="green">已上传</Tag> : <Tag>未上传</Tag>,
+        },
+        {
+            title: '状态',
+            dataIndex: 'isVisible',
+            width: 120,
+            render: (value: boolean) =>
+                value ? (
+                    <Tag icon={<EyeOutlined />} color="success">显示</Tag>
+                ) : (
+                    <Tag icon={<EyeInvisibleOutlined />} color="default">隐藏</Tag>
+                ),
+        },
+        {
+            title: '创建时间',
+            dataIndex: 'createdAt',
+            width: 180,
+            render: (value: string) => new Date(value).toLocaleDateString(),
+        },
+        {
+            title: '操作',
+            key: 'actions',
+            width: 180,
+            render: (_: any, record: Tab) => (
+                <Space>
+                    <Button size="small" icon={<EditOutlined />} onClick={() => startEdit(record)}>
+                        编辑
+                    </Button>
+                    <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleDelete(record)}
+                    >
+                        删除
+                    </Button>
+                </Space>
+            ),
+        },
+    ];
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">分类管理</h1>
-                <button
-                    onClick={() => setShowForm(true)}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                    <Plus className="w-4 h-4 mr-2" />
-                    添加分类
-                </button>
-            </div>
-
-            {/* Modal Form */}
-            {showForm && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-                        <h2 className="text-xl font-bold mb-4">{editingId ? '编辑分类' : '添加新分类'}</h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">名称</label>
-                                <input
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                                    placeholder="例如：7*8 手串"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">最大珠子数</label>
-                                <input
-                                    type="number"
-                                    value={maxBeads}
-                                    onChange={(e) => setMaxBeads(Number(e.target.value))}
-                                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">模型 (.glb)</label>
-                                <div className="flex items-center space-x-2">
-                                    <input
-                                        type="file"
-                                        accept=".glb"
-                                        onChange={handleFileUpload}
-                                        className="block w-full text-sm text-gray-900 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                                    />
-                                    {model && <span className="text-xs text-green-600 whitespace-nowrap">已上传</span>}
-                                </div>
-                            </div>
-                            <div className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    id="isVisible"
-                                    checked={isVisible}
-                                    onChange={(e) => setIsVisible(e.target.checked)}
-                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                />
-                                <label htmlFor="isVisible" className="ml-2 block text-sm text-gray-900">
-                                    显示
-                                </label>
-                            </div>
-
-                            <div className="flex justify-end space-x-3 mt-6">
-                                <button
-                                    type="button"
-                                    onClick={resetForm}
-                                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                                >
-                                    取消
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                                >
-                                    {submitting ? '保存中...' : (editingId ? '更新' : '添加')}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, alignItems: 'center' }}>
+                <div>
+                    <Title level={4} style={{ marginBottom: 4 }}>分类管理</Title>
+                    <Paragraph type="secondary" style={{ margin: 0 }}>维护手串分类和对应的 3D 模型</Paragraph>
                 </div>
-            )}
-
-            {/* List */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">名称</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">最大珠子数</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">模型</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {loading ? (
-                            <tr>
-                                <td colSpan={6} className="px-6 py-4 text-center text-gray-500">加载中...</td>
-                            </tr>
-                        ) : tabs.length === 0 ? (
-                            <tr>
-                                <td colSpan={6} className="px-6 py-4 text-center text-gray-500">暂无分类</td>
-                            </tr>
-                        ) : (
-                            tabs.map((tab) => (
-                                <tr key={tab.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tab.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tab.maxBeads}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {tab.model ? <span className="text-green-600">有</span> : <span className="text-gray-400">无</span>}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {tab.isVisible ? (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                <Eye className="w-3 h-3 mr-1" /> 显示
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                                <EyeOff className="w-3 h-3 mr-1" /> 隐藏
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(tab.createdAt).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                                        <button
-                                            onClick={() => startEdit(tab)}
-                                            className="text-blue-600 hover:text-blue-900"
-                                        >
-                                            <Edit2 className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(tab.id)}
-                                            className="text-red-600 hover:text-red-900"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                    添加分类
+                </Button>
             </div>
+
+            <Table
+                rowKey="id"
+                loading={loading}
+                columns={columns}
+                dataSource={tabs}
+                pagination={false}
+                bordered
+            />
+
+            <Modal
+                title={editingId ? '编辑分类' : '添加分类'}
+                open={modalOpen}
+                onCancel={() => setModalOpen(false)}
+                onOk={handleSubmit}
+                confirmLoading={submitting}
+                destroyOnClose
+            >
+                <Form form={form} layout="vertical">
+                    <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+                        <Input placeholder="例如：7*8 手串" />
+                    </Form.Item>
+                    <Form.Item name="maxBeads" label="最大珠子数">
+                        <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+                    </Form.Item>
+                    <Form.Item label="模型 (.glb)" name="model">
+                        <Space>
+                            <Upload
+                                accept=".glb"
+                                maxCount={1}
+                                showUploadList={false}
+                                beforeUpload={(file) => {
+                                    uploadModel(file);
+                                    return false;
+                                }}
+                            >
+                                <Button icon={<UploadOutlined />} loading={uploading}>
+                                    上传模型
+                                </Button>
+                            </Upload>
+                            {form.getFieldValue('model') && <Tag color="green">已上传</Tag>}
+                        </Space>
+                    </Form.Item>
+                    <Form.Item
+                        name="isVisible"
+                        label="显示"
+                        valuePropName="checked"
+                        initialValue
+                    >
+                        <Switch />
+                    </Form.Item>
+                </Form>
+            </Modal>
         </div>
     );
 }

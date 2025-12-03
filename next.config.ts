@@ -5,7 +5,7 @@ const publicDomain = process.env.ALIYUN_OSS_PUBLIC_DOMAIN
     ? `https://${process.env.ALIYUN_OSS_BUCKET}.${process.env.ALIYUN_OSS_REGION}.aliyuncs.com`
     : undefined);
 
-const remotePatterns = [];
+const remotePatterns: { protocol: 'http' | 'https'; hostname: string }[] = [];
 if (publicDomain) {
   try {
     const parsed = new URL(publicDomain);
@@ -19,8 +19,14 @@ if (publicDomain) {
   }
 }
 
+// Fallback: allow直接访问常见 OSS 域名（本项目使用的 sanli-access bucket）
+remotePatterns.push({
+  protocol: 'https',
+  hostname: 'sanli-access.oss-cn-shenzhen.aliyuncs.com',
+});
+
 const nextConfig: NextConfig = {
-  images: remotePatterns.length > 0 ? { remotePatterns } : undefined,
+  images: { remotePatterns },
 };
 
 export default nextConfig;

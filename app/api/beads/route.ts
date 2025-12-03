@@ -37,7 +37,7 @@ export async function POST(request: Request) {
             weight: Number(weight) || 0,
             width: Number(width) || 0,
             material: material || '',
-            orientation: orientation || 'center',
+            orientation: orientation || 'radial',
             hasGold: !!hasGold,
             goldWeight: Number(goldWeight) || 0,
             price: Number(price) || 0,

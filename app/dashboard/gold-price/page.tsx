@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Save } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Card, Form, InputNumber, Button, Typography, Space, Alert } from 'antd';
+import { SaveOutlined } from '@ant-design/icons';
+
+const { Title, Paragraph, Text } = Typography;
 
 export default function GoldPricePage() {
-    const [price, setPrice] = useState<number | ''>('');
-    const [updatedAt, setUpdatedAt] = useState('');
+    const [form] = Form.useForm();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState('');
+    const [updatedAt, setUpdatedAt] = useState('');
+    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
     useEffect(() => {
         fetchPrice();
@@ -19,7 +22,7 @@ export default function GoldPricePage() {
             const res = await fetch('/api/gold-price');
             if (res.ok) {
                 const data = await res.json();
-                setPrice(data.price);
+                form.setFieldsValue({ price: data.price });
                 setUpdatedAt(data.updatedAt);
             }
         } catch (error) {
@@ -29,78 +32,85 @@ export default function GoldPricePage() {
         }
     }
 
-    async function handleSave(e: React.FormEvent) {
-        e.preventDefault();
-        if (price === '') return;
-
+    async function handleSave(values: { price: number }) {
         setSaving(true);
-        setMessage('');
+        setMessage(null);
         try {
             const res = await fetch('/api/gold-price', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ price: Number(price) }),
+                body: JSON.stringify({ price: Number(values.price) }),
             });
 
             if (res.ok) {
                 const data = await res.json();
-                setPrice(data.price);
+                form.setFieldsValue({ price: data.price });
                 setUpdatedAt(data.updatedAt);
-                setMessage('金价更新成功！');
+                setMessage({ type: 'success', text: '金价更新成功！' });
             } else {
-                setMessage('更新金价失败。');
+                setMessage({ type: 'error', text: '更新金价失败。' });
             }
         } catch (error) {
             console.error('Failed to update gold price', error);
-            setMessage('更新金价出错。');
+            setMessage({ type: 'error', text: '更新金价出错。' });
         } finally {
             setSaving(false);
         }
     }
 
     return (
-        <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">每日金价</h1>
-
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 max-w-md">
-                <form onSubmit={handleSave} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">当前金价 (元/克)</label>
-                        <div className="relative rounded-md shadow-sm">
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={price}
-                                onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                                placeholder="0.00"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    {updatedAt && (
-                        <p className="text-sm text-gray-500">
-                            最后更新: {new Date(updatedAt).toLocaleString()}
-                        </p>
-                    )}
-
-                    {message && (
-                        <div className={`p-3 rounded-md text-sm ${message.includes('success') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {message}
-                        </div>
-                    )}
-
-                    <button
-                        type="submit"
-                        disabled={saving || loading}
-                        className="flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                    >
-                        <Save className="w-4 h-4 mr-2" />
-                        {saving ? '保存中...' : '更新金价'}
-                    </button>
-                </form>
+        <Space direction="vertical" size={24} style={{ width: '100%' }}>
+            <div>
+                <Title level={3} style={{ marginBottom: 8 }}>每日金价</Title>
+                <Paragraph type="secondary" style={{ margin: 0 }}>
+                    更新用于报价计算的最新金价（元/克）
+                </Paragraph>
             </div>
-        </div>
+
+            <Card loading={loading} style={{ maxWidth: 420 }}>
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleSave}
+                    initialValues={{ price: undefined }}
+                >
+                    <Form.Item
+                        name="price"
+                        label="当前金价"
+                        rules={[{ required: true, message: '请输入金价' }]}
+                    >
+                        <InputNumber
+                            min={0}
+                            step={0.01}
+                            stringMode
+                            addonAfter="元/克"
+                            style={{ width: '100%' }}
+                        />
+                    </Form.Item>
+
+                    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                        {updatedAt && (
+                            <Text type="secondary">最后更新：{new Date(updatedAt).toLocaleString()}</Text>
+                        )}
+                        {message && (
+                            <Alert
+                                type={message.type}
+                                message={message.text}
+                                showIcon
+                            />
+                        )}
+                        <Button
+                            type="primary"
+                            htmlType="submit"
+                            icon={<SaveOutlined />}
+                            loading={saving}
+                            block
+                        >
+                            更新金价
+                        </Button>
+                    </Space>
+                </Form>
+            </Card>
+        </Space>
     );
 }

@@ -1,75 +1,89 @@
-import { logout } from '@/lib/auth';
-import { redirect } from 'next/navigation';
-import Link from 'next/link';
-import { LayoutDashboard, Package, LogOut } from 'lucide-react';
+'use client';
 
-export default function DashboardLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
-    async function handleLogout() {
-        'use server';
-        await logout();
-        redirect('/login');
-    }
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Layout, Menu, Button, theme } from 'antd';
+import {
+    DashboardOutlined,
+    GoldOutlined,
+    AppstoreOutlined,
+    ApiOutlined,
+    LogoutOutlined,
+} from '@ant-design/icons';
+import { logoutAction } from './logout-action';
+
+const { Sider, Content, Header } = Layout;
+
+const menuItems = [
+    { key: '/dashboard', icon: <DashboardOutlined />, label: <Link href="/dashboard">仪表盘</Link> },
+    { key: '/dashboard/gold-price', icon: <GoldOutlined />, label: <Link href="/dashboard/gold-price">每日金价</Link> },
+    { key: '/dashboard/tabs', icon: <AppstoreOutlined />, label: <Link href="/dashboard/tabs">分类管理</Link> },
+    { key: '/dashboard/beads', icon: <ApiOutlined />, label: <Link href="/dashboard/beads">珠子管理</Link> },
+];
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
+    const {
+        token: { colorBgContainer, borderRadiusLG },
+    } = theme.useToken();
+
+    const selectedKey =
+        menuItems.find((item) => pathname.startsWith(item.key))?.key || '/dashboard';
 
     return (
-        <div className="min-h-screen bg-gray-100 flex">
-            {/* Sidebar */}
-            <aside className="w-64 bg-white shadow-md flex flex-col">
-                <div className="p-6 border-b">
-                    <h1 className="text-xl font-bold text-gray-800">管理后台</h1>
+        <Layout style={{ minHeight: '100vh' }}>
+            <Sider width={230} theme="light" style={{ borderRight: '1px solid #f0f0f0' }}>
+                <div className="px-6 py-5 border-b border-gray-100">
+                    <div className="text-lg font-semibold text-gray-800">管理后台</div>
+                    <div className="text-xs text-gray-500 mt-1">运营配置中心</div>
                 </div>
-
-                <nav className="flex-1 p-4 space-y-2">
-                    <Link
-                        href="/dashboard"
-                        className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                        <LayoutDashboard className="w-5 h-5 mr-3" />
-                        仪表盘
-                    </Link>
-                    <Link
-                        href="/dashboard/gold-price"
-                        className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                        <span className="w-5 h-5 mr-3 flex items-center justify-center font-bold text-yellow-600">¥</span>
-                        每日金价
-                    </Link>
-                    <Link
-                        href="/dashboard/tabs"
-                        className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                        <span className="w-5 h-5 mr-3 flex items-center justify-center font-bold text-blue-600">T</span>
-                        分类管理
-                    </Link>
-                    <Link
-                        href="/dashboard/beads"
-                        className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                        <span className="w-5 h-5 mr-3 flex items-center justify-center font-bold text-purple-600">B</span>
-                        珠子管理
-                    </Link>
-                </nav>
-
-                <div className="p-4 border-t">
-                    <form action={handleLogout}>
-                        <button
-                            type="submit"
-                            className="flex items-center w-full px-4 py-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                <Menu
+                    mode="inline"
+                    selectedKeys={[selectedKey]}
+                    items={menuItems}
+                    style={{ height: '100%', borderInlineEnd: 'none' }}
+                />
+                <div className="p-4 border-t border-gray-100">
+                    <form action={logoutAction}>
+                        <Button
+                            icon={<LogoutOutlined />}
+                            danger
+                            block
+                            htmlType="submit"
                         >
-                            <LogOut className="w-5 h-5 mr-3" />
                             退出登录
-                        </button>
+                        </Button>
                     </form>
                 </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 p-8 overflow-y-auto">
-                {children}
-            </main>
-        </div>
+            </Sider>
+            <Layout>
+                <Header
+                    style={{
+                        background: colorBgContainer,
+                        borderBottom: '1px solid #f0f0f0',
+                        padding: '0 24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                        gap: 12,
+                    }}
+                >
+                    <span className="text-sm text-gray-500">欢迎回来</span>
+                </Header>
+                <Content style={{ padding: '24px', background: '#f5f7fa' }}>
+                    <div
+                        style={{
+                            background: colorBgContainer,
+                            padding: 24,
+                            borderRadius: borderRadiusLG,
+                            minHeight: 'calc(100vh - 120px)',
+                            boxShadow: '0 10px 30px -16px rgba(0,0,0,0.1)',
+                        }}
+                    >
+                        {children}
+                    </div>
+                </Content>
+            </Layout>
+        </Layout>
     );
 }
