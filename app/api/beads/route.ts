@@ -9,7 +9,9 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const beads = await db.bead.findMany();
+        const beads = (await db.bead.findMany()).sort(
+            (a, b) => (a.order ?? 0) - (b.order ?? 0)
+        );
         return NextResponse.json(beads);
     } catch (error) {
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

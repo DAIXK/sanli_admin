@@ -40,6 +40,28 @@ export interface Bead {
   tabId: string;
   isVisible: boolean;
   createdAt: string;
+  order: number;
+}
+
+export interface Order {
+  id: string;
+  openid: string;
+  address?: string;
+  products: any[];
+  totalPrice: number;
+  status: number; // 0: unpaid, 1: paid, 2: shipped, 3: completed
+  createdAt: string;
+  trackingNumber?: string;
+  carrierName?: string;
+  remark?: string;
+}
+
+export interface Design {
+  id: string;
+  openid: string;
+  payload: any;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DatabaseSchema {
@@ -47,6 +69,8 @@ export interface DatabaseSchema {
   goldPrice: GoldPrice;
   tabs: Tab[];
   beads: Bead[];
+  orders: Order[];
+  designs: Design[];
 }
 
 // Initial data
@@ -65,6 +89,8 @@ const initialData: DatabaseSchema = {
   },
   tabs: [],
   beads: [],
+  orders: [],
+  designs: [],
 };
 
 async function ensureDb() {
@@ -84,6 +110,28 @@ async function ensureDb() {
     if (!data.beads) {
       data.beads = [];
       changed = true;
+    }
+    if (!data.orders) {
+      data.orders = [];
+      changed = true;
+    }
+    if (!data.designs) {
+      data.designs = [];
+      changed = true;
+    }
+    if (data.beads) {
+      let maxOrder = 0;
+      let missingOrder = false;
+      data.beads = data.beads.map((b: any, index: number) => {
+        if (b.order === undefined) {
+          missingOrder = true;
+          maxOrder = Math.max(maxOrder, index + 1);
+          return { ...b, order: index + 1 };
+        }
+        maxOrder = Math.max(maxOrder, b.order);
+        return b;
+      });
+      if (missingOrder) changed = true;
     }
     if (changed) {
       await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
@@ -159,12 +207,17 @@ export const db = {
       const data = await getDb();
       return data.beads;
     },
-    create: async (bead: Omit<Bead, 'id' | 'createdAt'>) => {
+    create: async (bead: Omit<Bead, 'id' | 'createdAt' | 'order'> & { order?: number }) => {
       const data = await getDb();
+      const maxOrder =
+        data.beads
+          .filter((b) => b.tabId === bead.tabId)
+          .reduce((max, b) => Math.max(max, b.order ?? 0), 0) || 0;
       const newBead: Bead = {
         ...bead,
         id: Math.random().toString(36).slice(2, 9),
         createdAt: new Date().toISOString(),
+        order: bead.order ?? maxOrder + 1,
       };
       data.beads.push(newBead);
       await saveDb(data);
@@ -182,6 +235,87 @@ export const db = {
       const data = await getDb();
       data.beads = data.beads.filter((b) => b.id !== id);
       await saveDb(data);
+    },
+    reorder: async (tabId: string, orderedIds: string[]) => {
+      const data = await getDb();
+      const beadsInTab = data.beads.filter((b) => b.tabId === tabId);
+      const idToBead = new Map(beadsInTab.map((b) => [b.id, b]));
+      orderedIds.forEach((id, index) => {
+        const bead = idToBead.get(id);
+        if (bead) {
+          bead.order = index + 1;
+        }
+      });
+      data.beads = [
+        ...data.beads.filter((b) => b.tabId !== tabId),
+        ...beadsInTab,
+      ];
+      await saveDb(data);
+      return beadsInTab;
+    },
+  },
+  order: {
+    findMany: async (filter?: { openid?: string; status?: number }) => {
+      const data = await getDb();
+      let orders = data.orders;
+      if (filter?.openid) {
+        orders = orders.filter((o) => o.openid === filter.openid);
+      }
+      if (filter?.status !== undefined) {
+        orders = orders.filter((o) => o.status === filter.status);
+      }
+      return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    },
+    create: async (order: Omit<Order, 'id' | 'createdAt'>) => {
+      const data = await getDb();
+      const newOrder: Order = {
+        ...order,
+        id: Math.random().toString(36).slice(2, 12),
+        createdAt: new Date().toISOString(),
+      };
+      data.orders.push(newOrder);
+      await saveDb(data);
+      return newOrder;
+    },
+    updateStatus: async (id: string, status: number) => {
+      const data = await getDb();
+      const idx = data.orders.findIndex((o) => o.id === id);
+      if (idx === -1) return null;
+      data.orders[idx].status = status;
+      await saveDb(data);
+      return data.orders[idx];
+    },
+    update: async (id: string, updates: Partial<Omit<Order, 'id' | 'createdAt'>>) => {
+      const data = await getDb();
+      const idx = data.orders.findIndex((o) => o.id === id);
+      if (idx === -1) return null;
+      data.orders[idx] = { ...data.orders[idx], ...updates };
+      await saveDb(data);
+      return data.orders[idx];
+    },
+  },
+  design: {
+    findMany: async (filter?: { openid?: string }) => {
+      const data = await getDb();
+      let designs = data.designs;
+      if (filter?.openid) {
+        designs = designs.filter((d) => d.openid === filter.openid);
+      }
+      return designs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    },
+    create: async (design: { openid: string; payload: any }) => {
+      const data = await getDb();
+      const now = new Date().toISOString();
+      const newDesign: Design = {
+        id: Math.random().toString(36).slice(2, 12),
+        openid: design.openid,
+        payload: design.payload,
+        createdAt: now,
+        updatedAt: now,
+      };
+      data.designs.push(newDesign);
+      await saveDb(data);
+      return newDesign;
     },
   },
 };
