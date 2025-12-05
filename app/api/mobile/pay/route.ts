@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { db } from '@/lib/db';
 
 const {
     WECHAT_APP_ID,
@@ -62,10 +63,47 @@ export async function POST(request: Request) {
         ensureConfig();
 
         const body = await request.json();
-        const { code, openid: openidRaw, total_fee, description, out_trade_no, attach } = body || {};
+        const { code, openid: openidRaw, total_fee, description, out_trade_no, attach, orderId } = body || {};
 
         let openid = openidRaw as string | undefined;
-        const totalFee = Math.max(1, Math.round(Number(total_fee ?? 1)));
+        // 开发阶段强制 0.01 元，上线删除此常量并恢复下面被注释的真实金额逻辑
+        const forceTestFee = true;
+        let totalFee = Number(total_fee ?? 0);
+
+        let outTradeNo = out_trade_no as string | undefined;
+        let attachStr = attach as string | undefined;
+
+        if (orderId) {
+            const order = await db.order.findById(orderId);
+            if (!order) {
+                return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+            }
+            if (openid && order.openid && openid !== order.openid) {
+                return NextResponse.json({ error: 'Order and openid mismatch' }, { status: 403 });
+            }
+            // 过期判断
+            const now = Date.now();
+            if (order.expiresAt && new Date(order.expiresAt).getTime() < now) {
+                await db.order.updateStatus(order.id, 4); // 4 = expired/cancelled
+                return NextResponse.json({ error: 'Order expired' }, { status: 410 });
+            }
+            if (order.status !== 0) {
+                return NextResponse.json({ error: 'Order already processed' }, { status: 400 });
+            }
+            // 真实金额逻辑（上线恢复）
+            // const priceFen = Math.max(1, Math.round(Number(order.totalPrice) * 100));
+            // totalFee = priceFen;
+            outTradeNo = outTradeNo || order.id;
+            attachStr = attachStr || `orderId=${order.id}`;
+        }
+
+        if (!totalFee || Number.isNaN(totalFee)) {
+            totalFee = 1;
+        }
+
+        if (forceTestFee) {
+            totalFee = 1; // 0.01元
+        }
 
         if (code) {
             const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${WECHAT_APP_ID}&secret=${WECHAT_APP_SECRET}&js_code=${code}&grant_type=authorization_code`;
@@ -87,13 +125,13 @@ export async function POST(request: Request) {
             mch_id: WECHAT_MCH_ID,
             nonce_str: generateNonce(),
             body: description || '商品支付',
-            out_trade_no: out_trade_no || `ORDER_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+            out_trade_no: outTradeNo || `ORDER_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
             total_fee: totalFee,
             spbill_create_ip: '127.0.0.1',
             notify_url: WECHAT_NOTIFY_URL,
             trade_type: 'JSAPI',
             openid,
-            attach,
+            attach: attachStr,
         };
 
         unifiedParams.sign = buildSign(unifiedParams);

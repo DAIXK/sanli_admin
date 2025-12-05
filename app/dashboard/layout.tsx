@@ -9,6 +9,7 @@ import {
     AppstoreOutlined,
     ApiOutlined,
     LogoutOutlined,
+    ShoppingOutlined,
 } from '@ant-design/icons';
 import { logoutAction } from './logout-action';
 
@@ -19,6 +20,7 @@ const menuItems = [
     { key: '/dashboard/gold-price', icon: <GoldOutlined />, label: <Link href="/dashboard/gold-price">每日金价</Link> },
     { key: '/dashboard/tabs', icon: <AppstoreOutlined />, label: <Link href="/dashboard/tabs">分类管理</Link> },
     { key: '/dashboard/beads', icon: <ApiOutlined />, label: <Link href="/dashboard/beads">珠子管理</Link> },
+    { key: '/dashboard/orders', icon: <ShoppingOutlined />, label: <Link href="/dashboard/orders">订单管理</Link> },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

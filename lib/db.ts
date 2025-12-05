@@ -46,14 +46,28 @@ export interface Bead {
 export interface Order {
   id: string;
   openid: string;
-  address?: string;
+  address?: Address | null;
   products: any[];
   totalPrice: number;
   status: number; // 0: unpaid, 1: paid, 2: shipped, 3: completed
   createdAt: string;
+  updatedAt?: string;
   trackingNumber?: string;
   carrierName?: string;
   remark?: string;
+  expiresAt?: string;
+  transactionId?: string | null;
+  paidAmount?: number | null;
+  paidAt?: string | null;
+}
+
+export interface Address {
+  userName: string;
+  telNumber: string;
+  provinceName: string;
+  cityName: string;
+  countyName: string;
+  detailInfo: string;
 }
 
 export interface Design {
@@ -114,6 +128,38 @@ async function ensureDb() {
     if (!data.orders) {
       data.orders = [];
       changed = true;
+    }
+    if (data.orders) {
+      let needsUpdate = false;
+      data.orders = data.orders.map((o: any) => {
+        const newOrder = { ...o };
+        if (o.updatedAt === undefined) {
+          needsUpdate = true;
+          newOrder.updatedAt = o.createdAt || new Date().toISOString();
+        }
+        if (o.expiresAt === undefined) {
+          needsUpdate = true;
+          newOrder.expiresAt = null;
+        }
+        if (o.address === undefined) {
+          needsUpdate = true;
+          newOrder.address = null;
+        }
+        if (o.transactionId === undefined) {
+          needsUpdate = true;
+          newOrder.transactionId = null;
+        }
+        if (o.paidAmount === undefined) {
+          needsUpdate = true;
+          newOrder.paidAmount = null;
+        }
+        if (o.paidAt === undefined) {
+          needsUpdate = true;
+          newOrder.paidAt = null;
+        }
+        return newOrder;
+      });
+      if (needsUpdate) changed = true;
     }
     if (!data.designs) {
       data.designs = [];
@@ -255,6 +301,10 @@ export const db = {
     },
   },
   order: {
+    findById: async (id: string) => {
+      const data = await getDb();
+      return data.orders.find((o) => o.id === id) || null;
+    },
     findMany: async (filter?: { openid?: string; status?: number }) => {
       const data = await getDb();
       let orders = data.orders;
@@ -272,6 +322,10 @@ export const db = {
         ...order,
         id: Math.random().toString(36).slice(2, 12),
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        transactionId: null,
+        paidAmount: null,
+        paidAt: null,
       };
       data.orders.push(newOrder);
       await saveDb(data);
@@ -282,6 +336,7 @@ export const db = {
       const idx = data.orders.findIndex((o) => o.id === id);
       if (idx === -1) return null;
       data.orders[idx].status = status;
+      data.orders[idx].updatedAt = new Date().toISOString();
       await saveDb(data);
       return data.orders[idx];
     },
@@ -289,7 +344,7 @@ export const db = {
       const data = await getDb();
       const idx = data.orders.findIndex((o) => o.id === id);
       if (idx === -1) return null;
-      data.orders[idx] = { ...data.orders[idx], ...updates };
+      data.orders[idx] = { ...data.orders[idx], ...updates, updatedAt: new Date().toISOString() };
       await saveDb(data);
       return data.orders[idx];
     },
