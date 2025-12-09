@@ -22,6 +22,8 @@ export async function GET(request: Request) {
         const orderId = searchParams.get('orderId') || undefined;
         const statusParam = searchParams.get('status');
         const status = statusParam !== null ? Number(statusParam) : undefined;
+        const afterSaleStatusParam = searchParams.get('afterSaleStatus');
+        const afterSaleStatus = afterSaleStatusParam !== null ? Number(afterSaleStatusParam) : undefined;
 
         let openid = openidParam;
         if (!openid && code) {
@@ -43,10 +45,14 @@ export async function GET(request: Request) {
             return NextResponse.json({ code: 0, success: true, data: order });
         }
 
-        const orders = await db.order.findMany({
+        let orders = await db.order.findMany({
             openid,
             status: Number.isNaN(status) ? undefined : status,
         });
+
+        if (!Number.isNaN(afterSaleStatus) && afterSaleStatusParam !== null) {
+            orders = orders.filter((o) => o.afterSaleStatus === afterSaleStatus);
+        }
 
         return NextResponse.json({ code: 0, success: true, data: orders });
     } catch (error) {

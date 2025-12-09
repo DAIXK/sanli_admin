@@ -10,7 +10,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { orderId, trackingNumber, carrierName } = body || {};
+        const { orderId, trackingNumber, carrierName, carrierCode } = body || {};
 
         if (!orderId || !trackingNumber || !carrierName) {
             return NextResponse.json({ error: 'Missing params' }, { status: 400 });
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
             status: 2,
             trackingNumber,
             carrierName,
+            carrierCode: carrierCode ?? order.carrierCode ?? null,
         });
 
         return NextResponse.json({ success: true, data: updated });

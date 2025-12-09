@@ -24,3 +24,8 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
+
+/* 统一下拉已选文字颜色为正常正文色 */
+:where(.ant-select .ant-select-selection-item) {
+  color: rgba(0, 0, 0, 0.88) !important;
+}

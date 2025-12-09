@@ -54,11 +54,21 @@ export interface Order {
   updatedAt?: string;
   trackingNumber?: string;
   carrierName?: string;
+  carrierCode?: string | null;
   remark?: string;
   expiresAt?: string;
   transactionId?: string | null;
   paidAmount?: number | null;
   paidAt?: string | null;
+  afterSaleStatus?: number | null; // 0/undefined: 无, 5: 待审核, 6: 处理中, 7: 完成, 8: 拒绝
+  afterSaleType?: string | null; // refund_only | return_refund | exchange
+  afterSaleReason?: string | null;
+  afterSaleDesc?: string | null;
+  afterSaleImages?: string[] | null;
+  afterSaleDeadline?: string | null;
+  returnTrackingNumber?: string | null;
+  returnCarrierCode?: string | null;
+  refundAmount?: number | null;
 }
 
 export interface Address {
@@ -78,6 +88,13 @@ export interface Design {
   updatedAt: string;
 }
 
+export interface AfterSaleReturnInfo {
+  receiverName: string;
+  telNumber: string;
+  address: string;
+  note: string;
+}
+
 export interface DatabaseSchema {
   users: User[];
   goldPrice: GoldPrice;
@@ -85,6 +102,7 @@ export interface DatabaseSchema {
   beads: Bead[];
   orders: Order[];
   designs: Design[];
+  afterSaleReturnInfo: AfterSaleReturnInfo;
 }
 
 // Initial data
@@ -105,6 +123,12 @@ const initialData: DatabaseSchema = {
   beads: [],
   orders: [],
   designs: [],
+  afterSaleReturnInfo: {
+    receiverName: '',
+    telNumber: '',
+    address: '',
+    note: '',
+  },
 };
 
 async function ensureDb() {
@@ -149,6 +173,18 @@ async function ensureDb() {
           needsUpdate = true;
           newOrder.transactionId = null;
         }
+        if (o.trackingNumber === undefined) {
+          needsUpdate = true;
+          newOrder.trackingNumber = null;
+        }
+        if (o.carrierName === undefined) {
+          needsUpdate = true;
+          newOrder.carrierName = null;
+        }
+        if (o.carrierCode === undefined) {
+          needsUpdate = true;
+          newOrder.carrierCode = null;
+        }
         if (o.paidAmount === undefined) {
           needsUpdate = true;
           newOrder.paidAmount = null;
@@ -157,9 +193,25 @@ async function ensureDb() {
           needsUpdate = true;
           newOrder.paidAt = null;
         }
+        if (o.afterSaleStatus === undefined) {
+          needsUpdate = true;
+          newOrder.afterSaleStatus = null;
+          newOrder.afterSaleType = null;
+          newOrder.afterSaleReason = null;
+          newOrder.afterSaleDesc = null;
+          newOrder.afterSaleImages = null;
+          newOrder.afterSaleDeadline = null;
+          newOrder.returnTrackingNumber = null;
+          newOrder.returnCarrierCode = null;
+          newOrder.refundAmount = null;
+        }
         return newOrder;
       });
       if (needsUpdate) changed = true;
+    }
+    if (!data.afterSaleReturnInfo) {
+      data.afterSaleReturnInfo = { ...initialData.afterSaleReturnInfo };
+      changed = true;
     }
     if (!data.designs) {
       data.designs = [];
@@ -305,7 +357,13 @@ export const db = {
       const data = await getDb();
       return data.orders.find((o) => o.id === id) || null;
     },
-    findMany: async (filter?: { openid?: string; status?: number }) => {
+    findMany: async (filter?: {
+      openid?: string;
+      status?: number;
+      keyword?: string;
+      createdFrom?: string;
+      createdTo?: string;
+    }) => {
       const data = await getDb();
       let orders = data.orders;
       if (filter?.openid) {
@@ -313,6 +371,34 @@ export const db = {
       }
       if (filter?.status !== undefined) {
         orders = orders.filter((o) => o.status === filter.status);
+      }
+      if (filter?.keyword) {
+        const kw = filter.keyword.toLowerCase();
+        orders = orders.filter((o) => {
+          const candidate = [
+            o.id,
+            o.transactionId,
+            o.trackingNumber,
+            o.returnTrackingNumber,
+            o.returnCarrierCode,
+            o.carrierName,
+            o.address?.userName,
+            o.address?.telNumber,
+            ...(o.products || []).map((p: any) => p.name || p.productName || p.braceletName || '').filter(Boolean),
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+          return candidate.includes(kw);
+        });
+      }
+      if (filter?.createdFrom) {
+        const from = new Date(filter.createdFrom).getTime();
+        orders = orders.filter((o) => new Date(o.createdAt).getTime() >= from);
+      }
+      if (filter?.createdTo) {
+        const to = new Date(filter.createdTo).getTime();
+        orders = orders.filter((o) => new Date(o.createdAt).getTime() <= to);
       }
       return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     },
@@ -326,6 +412,16 @@ export const db = {
         transactionId: null,
         paidAmount: null,
         paidAt: null,
+        carrierCode: order.carrierCode ?? null,
+        afterSaleStatus: null,
+        afterSaleType: null,
+        afterSaleReason: null,
+        afterSaleDesc: null,
+        afterSaleImages: null,
+        afterSaleDeadline: null,
+        returnTrackingNumber: null,
+        returnCarrierCode: null,
+        refundAmount: null,
       };
       data.orders.push(newOrder);
       await saveDb(data);
@@ -371,6 +467,18 @@ export const db = {
       data.designs.push(newDesign);
       await saveDb(data);
       return newDesign;
+    },
+  },
+  afterSaleReturnInfo: {
+    get: async () => {
+      const data = await getDb();
+      return data.afterSaleReturnInfo;
+    },
+    update: async (info: Partial<AfterSaleReturnInfo>) => {
+      const data = await getDb();
+      data.afterSaleReturnInfo = { ...data.afterSaleReturnInfo, ...info };
+      await saveDb(data);
+      return data.afterSaleReturnInfo;
     },
   },
 };

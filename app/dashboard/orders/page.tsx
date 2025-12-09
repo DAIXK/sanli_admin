@@ -9,11 +9,19 @@ import {
     Modal,
     Form,
     Input,
+    DatePicker,
+    Select,
     message,
     Descriptions,
     Typography,
+    Image,
 } from 'antd';
 import dayjs from 'dayjs';
+
+interface Tab {
+    id: string;
+    name: string;
+}
 
 interface Address {
     userName: string;
@@ -56,20 +64,43 @@ export default function OrdersPage() {
     const [shipModalOpen, setShipModalOpen] = useState(false);
     const [shipTarget, setShipTarget] = useState<Order | null>(null);
     const [shipForm] = Form.useForm();
+    const [tabs, setTabs] = useState<Tab[]>([]);
+    const [keyword, setKeyword] = useState('');
+    const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined);
+    const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null]);
 
     useEffect(() => {
-        fetchOrders();
+        fetchData();
     }, []);
 
-    async function fetchOrders() {
+    async function fetchData(opts?: { keyword?: string; status?: number | undefined; range?: [dayjs.Dayjs | null, dayjs.Dayjs | null] }) {
         setLoading(true);
         try {
-            const res = await fetch('/api/admin/orders');
-            const data = await res.json();
-            if (res.ok && data.data) {
-                setOrders(data.data);
+            const params = new URLSearchParams();
+            const kw = opts?.keyword ?? keyword;
+            const st = opts?.status ?? statusFilter;
+            const range = opts?.range ?? dateRange;
+
+            if (kw) params.set('keyword', kw);
+            if (st !== undefined && st !== null && !Number.isNaN(st)) params.set('status', String(st));
+            if (range?.[0]) params.set('createdFrom', range[0].startOf('day').toISOString());
+            if (range?.[1]) params.set('createdTo', range[1].endOf('day').toISOString());
+
+            const [ordersRes, tabsRes] = await Promise.all([
+                fetch(`/api/admin/orders${params.toString() ? `?${params.toString()}` : ''}`),
+                fetch('/api/tabs'),
+            ]);
+            const ordersData = await ordersRes.json();
+            const tabsData = await tabsRes.json();
+
+            if (ordersRes.ok && ordersData.data) {
+                setOrders(ordersData.data);
             } else {
-                message.error(data.error || '获取订单失败');
+                message.error(ordersData.error || '获取订单失败');
+            }
+
+            if (tabsRes.ok && Array.isArray(tabsData)) {
+                setTabs(tabsData);
             }
         } catch (error) {
             console.error(error);
@@ -77,6 +108,17 @@ export default function OrdersPage() {
         } finally {
             setLoading(false);
         }
+    }
+
+    function handleSearch() {
+        fetchData();
+    }
+
+    function handleReset() {
+        setKeyword('');
+        setStatusFilter(undefined);
+        setDateRange([null, null]);
+        fetchData({ keyword: '', status: undefined, range: [null, null] });
     }
 
     function openShipModal(order: Order) {
@@ -105,7 +147,7 @@ export default function OrdersPage() {
             if (res.ok) {
                 message.success('发货信息已更新');
                 setShipModalOpen(false);
-                fetchOrders();
+                fetchData();
             } else {
                 message.error(data.error || '发货失败');
             }
@@ -117,31 +159,30 @@ export default function OrdersPage() {
 
     const columns = [
         {
-            title: '订单号',
-            dataIndex: 'id',
-            width: 180,
-            render: (text: string) => <Typography.Text copyable>{text}</Typography.Text>,
-        },
-        {
-            title: 'openid',
-            dataIndex: 'openid',
-            width: 200,
-            ellipsis: true,
+            title: '商品',
+            dataIndex: 'products',
+            width: 240,
+            render: (_: any, record: Order) => {
+                const first = (record.products || [])[0] || {};
+                const name = getBraceletName(first);
+                const img = first.image || first.productImage || first.snapshotUrl;
+                const beadText = getBeadSummaryText(first);
+                return (
+                    <Space direction="horizontal" size={8}>
+                        {img ? <Image src={img} width={48} height={48} style={{ objectFit: 'cover', borderRadius: 6 }} /> : null}
+                        <Space direction="vertical" size={2}>
+                            <Typography.Text>{name}</Typography.Text>
+                            {beadText ? <Typography.Text type="secondary" style={{ fontSize: 12 }}>{beadText}</Typography.Text> : null}
+                        </Space>
+                    </Space>
+                );
+            },
         },
         {
             title: '金额',
             dataIndex: 'totalPrice',
             width: 100,
             render: (_: any, record: Order) => `¥${record.totalPrice}`,
-        },
-        {
-            title: '状态',
-            dataIndex: 'status',
-            width: 140,
-            render: (status: number) => {
-                const info = statusLabel[status] || { text: '未知', color: 'default' };
-                return <Tag color={info.color}>{info.text}</Tag>;
-            },
         },
         {
             title: '支付',
@@ -178,6 +219,22 @@ export default function OrdersPage() {
                 ),
         },
         {
+            title: '珠子明细',
+            dataIndex: 'beads',
+            width: 220,
+            render: (_: any, record: Order) => {
+                const texts = (record.products || [])
+                    .map((p: any) => getBeadSummaryText(p))
+                    .filter(Boolean);
+                if (!texts.length) return <Typography.Text type="secondary">-</Typography.Text>;
+                return (
+                    <Typography.Paragraph style={{ margin: 0 }} ellipsis={{ rows: 2 }}>
+                        {texts.join(' | ')}
+                    </Typography.Paragraph>
+                );
+            },
+        },
+        {
             title: '时间',
             dataIndex: 'createdAt',
             width: 160,
@@ -187,6 +244,15 @@ export default function OrdersPage() {
                     {record.updatedAt && <Typography.Text type="secondary" style={{ fontSize: 12 }}>更新 {dayjs(record.updatedAt).format('MM-DD HH:mm')}</Typography.Text>}
                 </Space>
             ),
+        },
+        {
+            title: '状态',
+            dataIndex: 'status',
+            width: 140,
+            render: (status: number) => {
+                const info = statusLabel[status] || { text: '未知', color: 'default' };
+                return <Tag color={info.color}>{info.text}</Tag>;
+            },
         },
         {
             title: '操作',
@@ -214,12 +280,127 @@ export default function OrdersPage() {
         setDetailModal({ open: true, order });
     }
 
+    function getBraceletName(item: any) {
+        const fromItem = item.braceletName || item.productName;
+        if (fromItem) return fromItem;
+        const tabName = tabs.find((t) => t.id === item.braceletId || t.id === item.productId)?.name;
+        return tabName || '手串';
+    }
+
+    function getBeadSummaryText(item: any) {
+        if (Array.isArray(item.beadSummaryLines)) return item.beadSummaryLines.join('，');
+        if (Array.isArray(item.beadSummary)) return item.beadSummary.join('，');
+        if (typeof item.beadSummary === 'string') return item.beadSummary;
+        return '';
+    }
+
+    function formatAddress(addr?: any) {
+        if (!addr) return '';
+        return `${addr.userName || ''} ${addr.telNumber || ''} ${addr.provinceName || ''}${addr.cityName || ''}${addr.countyName || ''}${addr.detailInfo || ''}`.trim();
+    }
+
+    function exportCsv() {
+        if (!orders.length) {
+            message.info('暂无可导出的数据');
+            return;
+        }
+        const headers = [
+            '订单号',
+            '金额',
+            '状态',
+            '支付单号',
+            '支付金额',
+            '支付时间',
+            '创建时间',
+            '更新时间',
+            '物流',
+            '收货信息',
+            '商品',
+            '珠子明细',
+            '备注',
+        ];
+        const rows = orders.map((o) => {
+            const products = (o.products || []).map((p: any) => getBraceletName(p)).join(' | ');
+            const beadSummary = (o.products || [])
+                .map((p: any) => getBeadSummaryText(p))
+                .filter(Boolean)
+                .join(' | ');
+            const logistic = o.carrierName && o.trackingNumber ? `${o.carrierName}/${o.trackingNumber}` : '';
+            return [
+                o.id,
+                o.totalPrice,
+                statusLabel[o.status]?.text || o.status,
+                o.transactionId || '',
+                o.paidAmount || '',
+                o.paidAt ? dayjs(o.paidAt).format('YYYY-MM-DD HH:mm:ss') : '',
+                o.createdAt ? dayjs(o.createdAt).format('YYYY-MM-DD HH:mm:ss') : '',
+                o.updatedAt ? dayjs(o.updatedAt).format('YYYY-MM-DD HH:mm:ss') : '',
+                logistic,
+                formatAddress(o.address),
+                products,
+                beadSummary,
+                o.remark || '',
+            ];
+        });
+        const csv = [headers, ...rows]
+            .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+            .join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `orders_${dayjs().format('YYYYMMDD_HHmmss')}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    }
+
     return (
         <div>
             <div style={{ marginBottom: 16 }}>
                 <Typography.Title level={4} style={{ margin: 0 }}>订单管理</Typography.Title>
                 <Typography.Paragraph type="secondary" style={{ margin: 0 }}>查看订单并更新发货信息</Typography.Paragraph>
             </div>
+
+            <Space style={{ marginBottom: 16 }} wrap>
+                <Input
+                    placeholder="订单号 / 支付单号 / 收件人 / 电话 / 快递单号"
+                    style={{ width: 280 }}
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    allowClear
+                    onPressEnter={handleSearch}
+                />
+                <Select
+                    placeholder="全部状态"
+                    style={{ width: 160 }}
+                    allowClear
+                    value={statusFilter}
+                    onChange={(v) => {
+                        setStatusFilter(v);
+                        fetchData({ status: v });
+                    }}
+                    options={[
+                        { label: '全部状态', value: undefined },
+                        { label: '未支付', value: 0 },
+                        { label: '已支付/待发货', value: 1 },
+                        { label: '已发货', value: 2 },
+                        { label: '已完成', value: 3 },
+                        { label: '已过期/取消', value: 4 },
+                    ]}
+                />
+                <DatePicker.RangePicker
+                    value={dateRange}
+                    onChange={(v) => {
+                        setDateRange(v as any);
+                    }}
+                    onOpenChange={(open) => {
+                        if (!open) handleSearch();
+                    }}
+                />
+                <Button type="primary" onClick={handleSearch}>查询</Button>
+                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={exportCsv}>导出 CSV</Button>
+            </Space>
 
             <Table
                 rowKey="id"
@@ -287,7 +468,14 @@ export default function OrdersPage() {
                             {(detailModal.order.products || []).map((item: any, idx: number) => (
                                 <div key={idx} style={{ padding: 12, border: '1px solid #f0f0f0', borderRadius: 8, marginBottom: 8 }}>
                                     <Space direction="vertical" size={4}>
-                                        <div><strong>{item.braceletName || item.productName || '手串'}</strong>（{item.braceletId || item.productId || '-'}）</div>
+                                        {(() => {
+                                            const displayName = getBraceletName(item);
+                                            return (
+                                                <div>
+                                                    <strong>{displayName}</strong>
+                                                </div>
+                                            );
+                                        })()}
                                         <div style={{ color: '#666' }}>价格：¥{item.price || item.formattedPrice || '-'}</div>
                                         {item.snapshotUrl && <div style={{ color: '#666' }}>图片：{item.snapshotUrl}</div>}
                                         {item.beadSummary && <div style={{ color: '#666' }}>珠子明细：{typeof item.beadSummary === 'string' ? item.beadSummary : JSON.stringify(item.beadSummary)}</div>}
