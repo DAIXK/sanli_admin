@@ -11,6 +11,7 @@ import {
     LogoutOutlined,
     ShoppingOutlined,
     SafetyCertificateOutlined,
+    MessageOutlined,
 } from '@ant-design/icons';
 import { logoutAction } from './logout-action';
 
@@ -23,6 +24,7 @@ const menuItems = [
     { key: '/dashboard/beads', icon: <ApiOutlined />, label: <Link href="/dashboard/beads">珠子管理</Link> },
     { key: '/dashboard/orders', icon: <ShoppingOutlined />, label: <Link href="/dashboard/orders">订单管理</Link> },
     { key: '/dashboard/after-sale', icon: <SafetyCertificateOutlined />, label: <Link href="/dashboard/after-sale">售后管理</Link> },
+    { key: '/dashboard/feedback', icon: <MessageOutlined />, label: <Link href="/dashboard/feedback">反馈建议</Link> },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

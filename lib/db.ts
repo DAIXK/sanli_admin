@@ -95,6 +95,14 @@ export interface AfterSaleReturnInfo {
   note: string;
 }
 
+export interface Feedback {
+  id: string;
+  openid?: string | null;
+  content: string;
+  contact?: string | null;
+  createdAt: string;
+}
+
 export interface DatabaseSchema {
   users: User[];
   goldPrice: GoldPrice;
@@ -103,6 +111,7 @@ export interface DatabaseSchema {
   orders: Order[];
   designs: Design[];
   afterSaleReturnInfo: AfterSaleReturnInfo;
+  feedbacks: Feedback[];
 }
 
 // Initial data
@@ -129,6 +138,7 @@ const initialData: DatabaseSchema = {
     address: '',
     note: '',
   },
+  feedbacks: [],
 };
 
 async function ensureDb() {
@@ -151,6 +161,10 @@ async function ensureDb() {
     }
     if (!data.orders) {
       data.orders = [];
+      changed = true;
+    }
+    if (!data.feedbacks) {
+      data.feedbacks = [];
       changed = true;
     }
     if (data.orders) {
@@ -479,6 +493,42 @@ export const db = {
       data.afterSaleReturnInfo = { ...data.afterSaleReturnInfo, ...info };
       await saveDb(data);
       return data.afterSaleReturnInfo;
+    },
+  },
+  feedback: {
+    findMany: async (filter?: { keyword?: string; createdFrom?: string; createdTo?: string }) => {
+      const data = await getDb();
+      let list = data.feedbacks || [];
+      if (filter?.keyword) {
+        const kw = filter.keyword.toLowerCase();
+        list = list.filter((f) => {
+          const candidate = [f.content, f.contact, f.openid].filter(Boolean).join(' ').toLowerCase();
+          return candidate.includes(kw);
+        });
+      }
+      if (filter?.createdFrom) {
+        const from = new Date(filter.createdFrom).getTime();
+        list = list.filter((f) => new Date(f.createdAt).getTime() >= from);
+      }
+      if (filter?.createdTo) {
+        const to = new Date(filter.createdTo).getTime();
+        list = list.filter((f) => new Date(f.createdAt).getTime() <= to);
+      }
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    },
+    create: async (feedback: { content: string; contact?: string | null; openid?: string | null }) => {
+      const data = await getDb();
+      const now = new Date().toISOString();
+      const newFeedback: Feedback = {
+        id: Math.random().toString(36).slice(2, 12),
+        content: feedback.content,
+        contact: feedback.contact || null,
+        openid: feedback.openid || null,
+        createdAt: now,
+      };
+      data.feedbacks.push(newFeedback);
+      await saveDb(data);
+      return newFeedback;
     },
   },
 };
