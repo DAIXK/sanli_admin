@@ -25,8 +25,12 @@ remotePatterns.push({
   hostname: 'sanli-access.oss-cn-shenzhen.aliyuncs.com',
 });
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 const nextConfig: NextConfig = {
   images: { remotePatterns },
+  // 支持按子路径部署（例如 /sanli-panel）
+  ...(basePath ? { basePath } : {}),
   webpack: (config) => {
     // Aliyun OSS dependencies optionally require coffee-script; keep it external to avoid bundling issues.
     if (Array.isArray(config.externals)) {
