@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
+    "@prisma/client": "5.19.1",
     "ali-oss": "^6.23.0",
     "antd": "^6.0.1",
     "clsx": "^2.1.1",
@@ -28,6 +29,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.0.6",
+    "prisma": "5.19.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

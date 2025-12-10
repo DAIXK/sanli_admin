@@ -26,7 +26,23 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, image, model, weight, width, material, orientation, hasGold, goldWeight, price, processingFee, tabId, isVisible } = body;
+        const {
+            name,
+            image,
+            model,
+            weight,
+            width,
+            material,
+            orientation,
+            hasGold,
+            goldWeight,
+            price,
+            processingFee,
+            tabId,
+            isVisible,
+            basePricingMode,
+            extraPricingModes,
+        } = body;
 
         if (!name || !tabId) {
             return NextResponse.json({ error: 'Name and Tab are required' }, { status: 400 });
@@ -46,6 +62,8 @@ export async function POST(request: Request) {
             processingFee: Number(processingFee) || 0,
             tabId,
             isVisible: isVisible ?? true,
+            basePricingMode: basePricingMode || 'fixed',
+            extraPricingModes: Array.isArray(extraPricingModes) ? extraPricingModes : [],
         });
 
         return NextResponse.json(newBead);

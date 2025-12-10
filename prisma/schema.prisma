@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String @id @default(cuid())
+  username     String @unique
+  passwordHash String @map("password_hash")
+  role         String
+
+  @@map("users")
+}
+
+model GoldPrice {
+  id         Int      @id @default(1)
+  price      Decimal  @db.Decimal(12, 2)
+  updatedAt  DateTime @map("updated_at")
+
+  @@map("gold_price")
+}
+
+model Tab {
+  id         String   @id @default(cuid())
+  name       String
+  isVisible  Boolean  @map("is_visible")
+  maxBeads   Int      @map("max_beads")
+  model      String
+  createdAt  DateTime @default(now()) @map("created_at")
+  beads      Bead[]
+
+  @@map("tabs")
+}
+
+model Bead {
+  id            String   @id @default(cuid())
+  name          String
+  image         String
+  model         String
+  weight        Decimal  @db.Decimal(12, 2)
+  width         Decimal  @db.Decimal(12, 2)
+  material      String
+  orientation   String
+  hasGold       Boolean  @map("has_gold")
+  goldWeight    Decimal  @db.Decimal(12, 2) @map("gold_weight")
+  price         Decimal  @db.Decimal(12, 2)
+  processingFee Decimal  @db.Decimal(12, 2) @map("processing_fee")
+  basePricingMode   String   @default("fixed") @map("base_pricing_mode") // fixed | unit_times_weight | gold_by_goldprice
+  extraPricingModes String[] @default([]) @map("extra_pricing_modes") // add_processing_fee, add_unit_times_weight ...
+  tabId         String   @map("tab_id")
+  isVisible     Boolean  @map("is_visible")
+  createdAt     DateTime @default(now()) @map("created_at")
+  order         Int      @map("order")
+
+  tab Tab @relation(fields: [tabId], references: [id])
+
+  @@map("beads")
+}
+
+model Order {
+  id                  String    @id @default(cuid())
+  openid              String
+  address             Json?
+  products            Json
+  totalPrice          Decimal   @db.Decimal(12, 2) @map("total_price")
+  status              Int
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  trackingNumber      String?   @map("tracking_number")
+  carrierName         String?   @map("carrier_name")
+  carrierCode         String?   @map("carrier_code")
+  remark              String?
+  expiresAt           DateTime? @map("expires_at")
+  transactionId       String?   @map("transaction_id")
+  paidAmount          Decimal?  @db.Decimal(12, 2) @map("paid_amount")
+  paidAt              DateTime? @map("paid_at")
+  afterSaleStatus     Int?      @map("after_sale_status")
+  afterSaleType       String?   @map("after_sale_type")
+  afterSaleReason     String?   @map("after_sale_reason")
+  afterSaleDesc       String?   @map("after_sale_desc")
+  afterSaleImages     Json?     @map("after_sale_images")
+  afterSaleDeadline   DateTime? @map("after_sale_deadline")
+  returnTrackingNumber String?  @map("return_tracking_number")
+  returnCarrierCode   String?   @map("return_carrier_code")
+  refundAmount        Decimal?  @db.Decimal(12, 2) @map("refund_amount")
+
+  @@map("orders")
+}
+
+model Design {
+  id        String   @id @default(cuid())
+  openid    String
+  payload   Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("designs")
+}
+
+model AfterSaleReturnInfo {
+  id           Int    @id @default(1)
+  receiverName String? @map("receiver_name")
+  telNumber    String? @map("tel_number")
+  address      String?
+  note         String?
+
+  @@map("after_sale_return_info")
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  openid    String?
+  content   String
+  contact   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("feedbacks")
+}

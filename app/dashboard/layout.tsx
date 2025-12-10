@@ -34,7 +34,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } = theme.useToken();
 
     const selectedKey =
-        menuItems.find((item) => pathname.startsWith(item.key))?.key || '/dashboard';
+        menuItems
+            .reduce((best, item) => {
+                if (pathname.startsWith(item.key) && item.key.length > best.length) {
+                    return item.key;
+                }
+                return best;
+            }, '')
+        || '/dashboard';
 
     return (
         <Layout style={{ minHeight: '100vh' }}>

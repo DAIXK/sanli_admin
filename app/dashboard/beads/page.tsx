@@ -50,6 +50,8 @@ interface Bead {
     goldWeight: number;
     price: number;
     processingFee: number;
+    basePricingMode: string;
+    extraPricingModes: string[];
     tabId: string;
     isVisible: boolean;
     order: number;
@@ -71,6 +73,8 @@ const defaultFormValues = {
     goldWeight: undefined as number | undefined,
     price: undefined as number | undefined,
     processingFee: undefined as number | undefined,
+    basePricingMode: 'fixed',
+    extraPricingModes: [] as string[],
     tabId: '',
     isVisible: true,
 };
@@ -89,6 +93,17 @@ const orientationLabelMap: Record<string, string> = {
     center: '中',
     right: '右',
 };
+
+const basePricingOptions = [
+    { value: 'fixed', label: '固定单价（不乘重量）' },
+    { value: 'unit_times_weight', label: '单价 × 克重' },
+    { value: 'gold_by_goldprice', label: '黄金克重 × 金价' },
+];
+
+const extraPricingOptions = [
+    { value: 'add_processing_fee', label: '加加工费（price += 加工费）' },
+    { value: 'add_unit_times_weight', label: '再加单价×克重（用于叠加）' },
+];
 
 function normalizeOrientation(value?: string) {
     const found = ORIENTATIONS.find((o) => o.value === value);
@@ -180,6 +195,8 @@ export default function BeadsPage() {
             goldWeight: bead.goldWeight || undefined,
             price: bead.price || undefined,
             processingFee: bead.processingFee || undefined,
+            basePricingMode: bead.basePricingMode || 'fixed',
+            extraPricingModes: bead.extraPricingModes || [],
             tabId: bead.tabId,
             isVisible: bead.isVisible,
         });
@@ -297,6 +314,7 @@ export default function BeadsPage() {
                 weight: Number(values.weight) || 0,
                 width: Number(values.width) || 0,
                 goldWeight: Number(values.goldWeight) || 0,
+                extraPricingModes: Array.isArray(values.extraPricingModes) ? values.extraPricingModes : [],
             };
 
             const res = await fetch(url, {
@@ -437,6 +455,20 @@ export default function BeadsPage() {
                                                             <Tag>重 {bead.weight}g</Tag>
                                                             <Tag>宽 {bead.width}mm</Tag>
                                                             {bead.processingFee > 0 && <Tag>加工费 {bead.processingFee}</Tag>}
+                                                            <Tag color="geekblue">
+                                                                {
+                                                                    basePricingOptions.find((p) => p.value === bead.basePricingMode)?.label ||
+                                                                    bead.basePricingMode ||
+                                                                    '固定单价'
+                                                                }
+                                                            </Tag>
+                                                            {Array.isArray(bead.extraPricingModes) && bead.extraPricingModes.length > 0 && (
+                                                                <Tag color="purple">
+                                                                    {bead.extraPricingModes
+                                                                        .map((v) => extraPricingOptions.find((p) => p.value === v)?.label || v)
+                                                                        .join(' + ')}
+                                                                </Tag>
+                                                            )}
                                                             {bead.material && <Tag color="blue">{bead.material}</Tag>}
                                                             {bead.hasGold && <Tag color="gold">含金 {bead.goldWeight}g</Tag>}
                                                             <Tag color="purple">{orientationLabelMap[bead.orientation] || bead.orientation || '径向'}</Tag>
@@ -586,6 +618,24 @@ export default function BeadsPage() {
                         <Col span={12}>
                             <Form.Item name="processingFee" label="加工费">
                                 <InputNumber min={0} step={0.01} style={{ width: '100%' }} />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={12}>
+                        <Col span={12}>
+                            <Form.Item name="basePricingMode" label="基础计价" tooltip="固定单价、按克重、黄金克重×金价">
+                                <Select options={basePricingOptions} />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="extraPricingModes" label="附加项（可多选相加）">
+                                <Select
+                                    mode="multiple"
+                                    options={extraPricingOptions}
+                                    allowClear
+                                    placeholder="可附加加工费等"
+                                />
                             </Form.Item>
                         </Col>
                     </Row>

@@ -21,6 +21,9 @@ export async function PUT(
         if (body.goldWeight) body.goldWeight = Number(body.goldWeight);
         if (body.price) body.price = Number(body.price);
         if (body.processingFee) body.processingFee = Number(body.processingFee);
+        if (body.extraPricingModes && !Array.isArray(body.extraPricingModes)) {
+            body.extraPricingModes = [];
+        }
 
         const updatedBead = await db.bead.update(id, body);
 
