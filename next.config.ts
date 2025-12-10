@@ -27,6 +27,15 @@ remotePatterns.push({
 
 const nextConfig: NextConfig = {
   images: { remotePatterns },
+  webpack: (config) => {
+    // Aliyun OSS dependencies optionally require coffee-script; keep it external to avoid bundling issues.
+    if (Array.isArray(config.externals)) {
+      config.externals.push("coffee-script");
+    } else if (config.externals === undefined) {
+      config.externals = ["coffee-script"];
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

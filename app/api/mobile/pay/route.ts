@@ -14,6 +14,13 @@ function ensureConfig() {
     if (!WECHAT_APP_ID || !WECHAT_MCH_ID || !WECHAT_API_KEY || !WECHAT_APP_SECRET || !WECHAT_NOTIFY_URL) {
         throw new Error('Missing WeChat payment config. Please set WECHAT_APP_ID, WECHAT_MCH_ID, WECHAT_API_KEY, WECHAT_APP_SECRET, WECHAT_NOTIFY_URL.');
     }
+    return {
+        appId: WECHAT_APP_ID,
+        mchId: WECHAT_MCH_ID,
+        apiKey: WECHAT_API_KEY,
+        appSecret: WECHAT_APP_SECRET,
+        notifyUrl: WECHAT_NOTIFY_URL,
+    };
 }
 
 function md5(str: string) {
@@ -29,10 +36,10 @@ function generateNonce(length = 32) {
     return result;
 }
 
-function buildSign(params: Record<string, string | number | undefined>) {
+function buildSign(params: Record<string, string | number | undefined>, apiKey: string) {
     const sortedKeys = Object.keys(params).filter((k) => params[k] !== undefined && params[k] !== '').sort();
     const stringA = sortedKeys.map((k) => `${k}=${params[k]}`).join('&');
-    return md5(`${stringA}&key=${WECHAT_API_KEY}`);
+    return md5(`${stringA}&key=${apiKey}`);
 }
 
 function toXml(params: Record<string, string | number | undefined>) {
@@ -60,7 +67,7 @@ function parseXml(xml: string) {
 
 export async function POST(request: Request) {
     try {
-        ensureConfig();
+        const config = ensureConfig();
 
         const body = await request.json();
         const { code, openid: openidRaw, total_fee, description, out_trade_no, attach, orderId } = body || {};
@@ -106,7 +113,7 @@ export async function POST(request: Request) {
         }
 
         if (code) {
-            const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${WECHAT_APP_ID}&secret=${WECHAT_APP_SECRET}&js_code=${code}&grant_type=authorization_code`;
+            const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${config.appId}&secret=${config.appSecret}&js_code=${code}&grant_type=authorization_code`;
             const res = await fetch(url);
             const data = await res.json();
             if (data.openid) {
@@ -121,20 +128,20 @@ export async function POST(request: Request) {
         }
 
         const unifiedParams: Record<string, string | number | undefined> = {
-            appid: WECHAT_APP_ID,
-            mch_id: WECHAT_MCH_ID,
+            appid: config.appId,
+            mch_id: config.mchId,
             nonce_str: generateNonce(),
             body: description || '商品支付',
             out_trade_no: outTradeNo || `ORDER_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
             total_fee: totalFee,
             spbill_create_ip: '127.0.0.1',
-            notify_url: WECHAT_NOTIFY_URL,
+            notify_url: config.notifyUrl,
             trade_type: 'JSAPI',
             openid,
             attach: attachStr,
         };
 
-        unifiedParams.sign = buildSign(unifiedParams);
+        unifiedParams.sign = buildSign(unifiedParams, config.apiKey);
         const xmlData = toXml(unifiedParams);
 
         const wxRes = await fetch('https://api.mch.weixin.qq.com/pay/unifiedorder', {
@@ -158,13 +165,13 @@ export async function POST(request: Request) {
         }
 
         const payParams: Record<string, string> = {
-            appId: WECHAT_APP_ID,
+            appId: config.appId,
             timeStamp: `${Math.floor(Date.now() / 1000)}`,
             nonceStr: generateNonce(),
             package: `prepay_id=${prepayId}`,
             signType: 'MD5',
         };
-        payParams.paySign = buildSign(payParams);
+        payParams.paySign = buildSign(payParams, config.apiKey);
 
         return NextResponse.json(payParams);
     } catch (error: any) {

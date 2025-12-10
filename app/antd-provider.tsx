@@ -24,7 +24,7 @@ export default function AntdProvider({ children }: { children: React.ReactNode }
                     token: {
                         colorPrimary: '#1677ff',
                         borderRadius: 8,
-                        fontFamily: 'var(--font-geist-sans)',
+                        fontFamily: 'var(--app-font-sans)',
                     },
                 }}
             >

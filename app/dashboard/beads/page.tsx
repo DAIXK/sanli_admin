@@ -35,6 +35,9 @@ import type { RcFile } from 'antd/es/upload';
 interface Tab {
     id: string;
     name: string;
+    maxBeads?: number;
+    isVisible?: boolean;
+    model?: string;
 }
 
 interface Bead {
