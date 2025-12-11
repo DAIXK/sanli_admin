@@ -6,6 +6,7 @@ const {
     ALIYUN_OSS_ACCESS_KEY_SECRET,
     ALIYUN_OSS_BUCKET,
     ALIYUN_OSS_PUBLIC_DOMAIN,
+    ALIYUN_OSS_INTERNAL,
 } = process.env;
 
 function ensureConfig() {
@@ -22,6 +23,8 @@ function createClient() {
         accessKeySecret: ALIYUN_OSS_ACCESS_KEY_SECRET as string,
         bucket: ALIYUN_OSS_BUCKET as string,
         secure: true,
+        // 如果是在阿里云 ECS 上运行，开启 internal 可以走内网，节省流量并加速
+        internal: process.env.ALIYUN_OSS_INTERNAL === 'true',
     });
 }
 
