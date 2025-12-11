@@ -36,7 +36,8 @@ export async function login(payload: any) {
     const cookieStore = await cookies();
     cookieStore.set('token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        // 允许 HTTP 访问 (临时解决方案，或者使用 process.env.SECURE_COOKIE === 'true')
+        secure: false, // process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
         maxAge: 60 * 60 * 24, // 24 hours
