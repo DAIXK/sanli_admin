@@ -17,7 +17,7 @@ function ensureConfig() {
 
 function createClient() {
     ensureConfig();
-    const config = {
+    return new OSS({
         region: ALIYUN_OSS_REGION as string,
         accessKeyId: ALIYUN_OSS_ACCESS_KEY_ID as string,
         accessKeySecret: ALIYUN_OSS_ACCESS_KEY_SECRET as string,
@@ -25,14 +25,7 @@ function createClient() {
         secure: true,
         // 如果是在阿里云 ECS 上运行，开启 internal 可以走内网，节省流量并加速
         internal: process.env.ALIYUN_OSS_INTERNAL === 'true',
-    };
-    console.log('[OSS] Creating client with config:', {
-        region: config.region,
-        bucket: config.bucket,
-        internal: config.internal,
-        envInternal: process.env.ALIYUN_OSS_INTERNAL,
     });
-    return new OSS(config);
 }
 
 function buildPublicUrl(objectKey: string, fallbackUrl?: string) {
@@ -57,7 +50,14 @@ export async function uploadToOSS(buffer: Buffer, objectKey: string, mimeType?: 
     const client = createClient();
     const key = objectKey.replace(/^\/+/, '');
 
-    const { url } = await client.put(key, buffer, mimeType ? { mime: mimeType } : undefined);
+    const result = await client.put(key, buffer, mimeType ? { mime: mimeType } : undefined);
+
+    let url = result.url;
+    // Fix: If uploading via internal endpoint, the returned URL contains -internal which is not accessible from outside.
+    // We need to strip it to get the public URL.
+    if (url && url.includes('-internal')) {
+        url = url.replace('-internal', '');
+    }
 
     return {
         objectKey: key,

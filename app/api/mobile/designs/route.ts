@@ -14,6 +14,24 @@ async function codeToOpenId(code: string) {
     throw new Error(data.errmsg || 'Failed to get openid');
 }
 
+function sanitizeData(data: any): any {
+    if (typeof data === 'string') {
+        // Replace -internal in strings (e.g. oss-cn-shenzhen-internal.aliyuncs.com -> oss-cn-shenzhen.aliyuncs.com)
+        return data.replace(/-internal/g, '');
+    }
+    if (Array.isArray(data)) {
+        return data.map(sanitizeData);
+    }
+    if (typeof data === 'object' && data !== null) {
+        const result: any = {};
+        for (const key in data) {
+            result[key] = sanitizeData(data[key]);
+        }
+        return result;
+    }
+    return data;
+}
+
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
@@ -30,7 +48,11 @@ export async function GET(request: Request) {
         }
 
         const designs = await db.design.findMany({ openid });
-        return NextResponse.json({ code: 0, success: true, data: designs });
+        const sanitizedDesigns = designs.map(d => ({
+            ...d,
+            payload: sanitizeData(d.payload),
+        }));
+        return NextResponse.json({ code: 0, success: true, data: sanitizedDesigns });
     } catch (error: any) {
         console.error('Get designs error:', error);
         return NextResponse.json({ code: 500, error: error.message || 'Internal Server Error' }, { status: 500 });
