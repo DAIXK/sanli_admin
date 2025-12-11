@@ -31,7 +31,6 @@ const nextConfig: NextConfig = {
   images: { remotePatterns },
   // 支持按子路径部署（例如 /sanli-panel）
   ...(basePath ? { basePath } : {}),
-  trailingSlash: true,
   webpack: (config) => {
     // Aliyun OSS dependencies optionally require coffee-script; keep it external to avoid bundling issues.
     if (Array.isArray(config.externals)) {
