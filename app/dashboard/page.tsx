@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Card, Statistic, Row, Col, Typography, Space, message } from 'antd';
 import { ShoppingOutlined, SafetyCertificateOutlined, ExclamationCircleOutlined, DollarOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
+import { withBasePath } from '@/lib/basePath';
+
 const { Title, Paragraph } = Typography;
 
 interface Summary {
@@ -28,7 +30,7 @@ export default function DashboardPage() {
     async function fetchSummary() {
         setLoading(true);
         try {
-            const res = await fetch('/api/admin/dashboard/summary', { credentials: 'include' });
+            const res = await fetch(withBasePath('/api/admin/dashboard/summary'), { credentials: 'include' });
             const data = await res.json();
             if (res.ok && data.data) {
                 setSummary(data.data);

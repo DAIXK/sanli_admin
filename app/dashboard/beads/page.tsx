@@ -32,6 +32,8 @@ import {
 } from '@ant-design/icons';
 import type { RcFile } from 'antd/es/upload';
 
+import { withBasePath } from '@/lib/basePath';
+
 interface Tab {
     id: string;
     name: string;
@@ -153,8 +155,8 @@ export default function BeadsPage() {
         setLoading(true);
         try {
             const [beadsRes, tabsRes] = await Promise.all([
-                fetch('/api/beads', { credentials: 'include' }),
-                fetch('/api/tabs', { credentials: 'include' }),
+                fetch(withBasePath('/api/beads'), { credentials: 'include' }),
+                fetch(withBasePath('/api/tabs'), { credentials: 'include' }),
             ]);
 
             if (beadsRes.ok && tabsRes.ok) {
@@ -215,7 +217,7 @@ export default function BeadsPage() {
             centered: true,
             onOk: async () => {
                 try {
-                    const res = await fetch(`/api/beads/${bead.id}`, { method: 'DELETE' });
+                    const res = await fetch(withBasePath(`/api/beads/${bead.id}`), { method: 'DELETE' });
                     if (res.ok) {
                         message.success('已删除');
                         fetchData();
@@ -271,7 +273,7 @@ export default function BeadsPage() {
         setBeads(newBeads);
 
         try {
-            await fetch('/api/beads/reorder', {
+            await fetch(withBasePath('/api/beads/reorder'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tabId, order: withOrder.map((b) => b.id) }),
@@ -290,7 +292,7 @@ export default function BeadsPage() {
         formData.append('file', file);
         setUploadingField(field);
         try {
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const res = await fetch(withBasePath('/api/upload'), { method: 'POST', body: formData });
             if (!res.ok) throw new Error('upload failed');
             const data = await res.json();
             form.setFieldsValue({ [field]: data.url } as any);
@@ -320,7 +322,7 @@ export default function BeadsPage() {
                 extraPricingModes: Array.isArray(values.extraPricingModes) ? values.extraPricingModes : [],
             };
 
-            const res = await fetch(url, {
+            const res = await fetch(withBasePath(url), {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -475,11 +477,11 @@ export default function BeadsPage() {
                                                             {bead.material && <Tag color="blue">{bead.material}</Tag>}
                                                             {bead.hasGold && <Tag color="gold">含金 {bead.goldWeight}g</Tag>}
                                                             <Tag color="purple">{orientationLabelMap[bead.orientation] || bead.orientation || '径向'}</Tag>
-                                                        {bead.isVisible ? (
-                                                            <Tag icon={<EyeOutlined />} color="success">显示</Tag>
-                                                        ) : (
-                                                            <Tag icon={<EyeInvisibleOutlined />} color="default">隐藏</Tag>
-                                                        )}
+                                                            {bead.isVisible ? (
+                                                                <Tag icon={<EyeOutlined />} color="success">显示</Tag>
+                                                            ) : (
+                                                                <Tag icon={<EyeInvisibleOutlined />} color="default">隐藏</Tag>
+                                                            )}
                                                         </Space>
                                                     </Space>
                                                 </Card>
@@ -507,66 +509,66 @@ export default function BeadsPage() {
                                 {sortByOrder(
                                     beads.filter((b) => !tabs.find((t) => t.id === b.tabId))
                                 ).map((bead) => (
-                                        <Col flex="0 0 260px" key={bead.id} style={{ maxWidth: '100%' }}>
-                                            <div
-                                                draggable
-                                                onDragStart={() => handleDragStart(bead)}
-                                                onDragOver={(e) => handleDragOver(e, '')}
-                                                onDrop={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    handleDrop(bead.id, '');
-                                                }}
-                                                style={{ cursor: 'grab' }}
+                                    <Col flex="0 0 260px" key={bead.id} style={{ maxWidth: '100%' }}>
+                                        <div
+                                            draggable
+                                            onDragStart={() => handleDragStart(bead)}
+                                            onDragOver={(e) => handleDragOver(e, '')}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleDrop(bead.id, '');
+                                            }}
+                                            style={{ cursor: 'grab' }}
+                                        >
+                                            <Card
+                                                cover={coverNode(bead)}
+                                                style={{ width: '100%' }}
+                                                actions={[
+                                                    <Button
+                                                        type="text"
+                                                        icon={<EditOutlined />}
+                                                        onClick={() => startEdit(bead)}
+                                                        key="edit"
+                                                    >
+                                                        编辑
+                                                    </Button>,
+                                                    <Button
+                                                        type="text"
+                                                        danger
+                                                        icon={<DeleteOutlined />}
+                                                        onClick={() => handleDelete(bead)}
+                                                        key="delete"
+                                                    >
+                                                        删除
+                                                    </Button>,
+                                                ]}
+                                                loading={loading}
+                                                bodyStyle={{ padding: 16 }}
                                             >
-                                                <Card
-                                                    cover={coverNode(bead)}
-                                                    style={{ width: '100%' }}
-                                                    actions={[
-                                                        <Button
-                                                            type="text"
-                                                            icon={<EditOutlined />}
-                                                            onClick={() => startEdit(bead)}
-                                                            key="edit"
-                                                        >
-                                                            编辑
-                                                        </Button>,
-                                                        <Button
-                                                            type="text"
-                                                            danger
-                                                            icon={<DeleteOutlined />}
-                                                            onClick={() => handleDelete(bead)}
-                                                            key="delete"
-                                                        >
-                                                            删除
-                                                        </Button>,
-                                                    ]}
-                                                    loading={loading}
-                                                    bodyStyle={{ padding: 16 }}
-                                                >
-                                                    <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <Text strong>{bead.name}</Text>
-                                                            <Text type="success">¥{bead.price}</Text>
-                                                        </div>
-                                                        <Space size={[8, 8]} wrap>
-                                                            <Tag>重 {bead.weight}g</Tag>
-                                                            <Tag>宽 {bead.width}mm</Tag>
-                                                            {bead.processingFee > 0 && <Tag>加工费 {bead.processingFee}</Tag>}
-                                                            {bead.material && <Tag color="blue">{bead.material}</Tag>}
-                                                            {bead.hasGold && <Tag color="gold">含金 {bead.goldWeight}g</Tag>}
-                                                            <Tag color="purple">{orientationLabelMap[bead.orientation] || bead.orientation || '径向'}</Tag>
+                                                <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <Text strong>{bead.name}</Text>
+                                                        <Text type="success">¥{bead.price}</Text>
+                                                    </div>
+                                                    <Space size={[8, 8]} wrap>
+                                                        <Tag>重 {bead.weight}g</Tag>
+                                                        <Tag>宽 {bead.width}mm</Tag>
+                                                        {bead.processingFee > 0 && <Tag>加工费 {bead.processingFee}</Tag>}
+                                                        {bead.material && <Tag color="blue">{bead.material}</Tag>}
+                                                        {bead.hasGold && <Tag color="gold">含金 {bead.goldWeight}g</Tag>}
+                                                        <Tag color="purple">{orientationLabelMap[bead.orientation] || bead.orientation || '径向'}</Tag>
                                                         {bead.isVisible ? (
                                                             <Tag icon={<EyeOutlined />} color="success">显示</Tag>
                                                         ) : (
                                                             <Tag icon={<EyeInvisibleOutlined />} color="default">隐藏</Tag>
                                                         )}
-                                                        </Space>
                                                     </Space>
-                                                </Card>
-                                            </div>
-                                        </Col>
-                                    ))}
+                                                </Space>
+                                            </Card>
+                                        </div>
+                                    </Col>
+                                ))}
                             </Row>
                         </div>
                     )}

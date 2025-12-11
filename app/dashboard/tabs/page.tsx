@@ -5,6 +5,8 @@ import { Button, Table, Tag, Switch, Space, Modal, Form, Input, InputNumber, Upl
 import { PlusOutlined, UploadOutlined, EditOutlined, DeleteOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 import type { RcFile } from 'antd/es/upload';
 
+import { withBasePath } from '@/lib/basePath';
+
 interface Tab {
     id: string;
     name: string;
@@ -32,7 +34,7 @@ export default function TabsPage() {
     async function fetchTabs() {
         setLoading(true);
         try {
-            const res = await fetch('/api/tabs');
+            const res = await fetch(withBasePath('/api/tabs'));
             if (res.ok) {
                 const data = await res.json();
                 setTabs(data);
@@ -50,7 +52,7 @@ export default function TabsPage() {
         formData.append('file', file);
         setUploading(true);
         try {
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const res = await fetch(withBasePath('/api/upload'), { method: 'POST', body: formData });
             if (!res.ok) throw new Error('上传失败');
             const data = await res.json();
             form.setFieldsValue({ model: data.url });
@@ -70,7 +72,7 @@ export default function TabsPage() {
             const url = editingId ? `/api/tabs/${editingId}` : '/api/tabs';
             const method = editingId ? 'PUT' : 'POST';
 
-            const res = await fetch(url, {
+            const res = await fetch(withBasePath(url), {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -126,7 +128,7 @@ export default function TabsPage() {
             centered: true,
             onOk: async () => {
                 try {
-                    const res = await fetch(`/api/tabs/${tab.id}`, { method: 'DELETE' });
+                    const res = await fetch(withBasePath(`/api/tabs/${tab.id}`), { method: 'DELETE' });
                     if (res.ok) {
                         message.success('已删除');
                         fetchTabs();

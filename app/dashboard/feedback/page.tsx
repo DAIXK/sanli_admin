@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Table, Space, Typography, message, Input, DatePicker, Button, Tag } from 'antd';
 import dayjs from 'dayjs';
 
+import { withBasePath } from '@/lib/basePath';
+
 interface Feedback {
     id: string;
     content: string;
@@ -31,7 +33,7 @@ export default function FeedbackPage() {
             if (kw) params.set('keyword', kw);
             if (range?.[0]) params.set('createdFrom', range[0].startOf('day').toISOString());
             if (range?.[1]) params.set('createdTo', range[1].endOf('day').toISOString());
-            const res = await fetch(`/api/admin/feedback${params.toString() ? `?${params.toString()}` : ''}`);
+            const res = await fetch(withBasePath(`/api/admin/feedback${params.toString() ? `?${params.toString()}` : ''}`));
             const data = await res.json();
             if (res.ok && data.data) {
                 setList(data.data);

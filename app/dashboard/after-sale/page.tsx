@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Table, Tag, Space, Button, Modal, Form, Input, InputNumber, Select, message, Typography, Descriptions, Image, Divider, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 
+import { withBasePath } from '@/lib/basePath';
+
 interface Order {
     id: string;
     openid: string;
@@ -80,8 +82,8 @@ export default function AfterSalePage() {
             if (range?.[1]) params.set('createdTo', range[1].endOf('day').toISOString());
 
             const [ordersRes, returnInfoRes] = await Promise.all([
-                fetch(`/api/admin/orders/after-sale${params.toString() ? `?${params.toString()}` : ''}`),
-                fetch('/api/admin/orders/after-sale/return-info'),
+                fetch(withBasePath(`/api/admin/orders/after-sale${params.toString() ? `?${params.toString()}` : ''}`)),
+                fetch(withBasePath('/api/admin/orders/after-sale/return-info')),
             ]);
             const ordersData = await ordersRes.json();
             const returnData = await returnInfoRes.json();
@@ -105,7 +107,7 @@ export default function AfterSalePage() {
     async function saveReturnInfo() {
         try {
             const values = await returnInfoForm.validateFields();
-            const res = await fetch('/api/admin/orders/after-sale/return-info', {
+            const res = await fetch(withBasePath('/api/admin/orders/after-sale/return-info'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(values),
@@ -198,7 +200,7 @@ export default function AfterSalePage() {
     async function handleSubmit() {
         try {
             const values = await form.validateFields();
-            const res = await fetch('/api/admin/orders/after-sale/handle', {
+            const res = await fetch(withBasePath('/api/admin/orders/after-sale/handle'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

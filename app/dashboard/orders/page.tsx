@@ -18,6 +18,8 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 
+import { withBasePath } from '@/lib/basePath';
+
 interface Tab {
     id: string;
     name: string;
@@ -87,8 +89,8 @@ export default function OrdersPage() {
             if (range?.[1]) params.set('createdTo', range[1].endOf('day').toISOString());
 
             const [ordersRes, tabsRes] = await Promise.all([
-                fetch(`/api/admin/orders${params.toString() ? `?${params.toString()}` : ''}`),
-                fetch('/api/tabs'),
+                fetch(withBasePath(`/api/admin/orders${params.toString() ? `?${params.toString()}` : ''}`)),
+                fetch(withBasePath('/api/tabs')),
             ]);
             const ordersData = await ordersRes.json();
             const tabsData = await tabsRes.json();
@@ -134,7 +136,7 @@ export default function OrdersPage() {
     async function handleShip() {
         try {
             const values = await shipForm.validateFields();
-            const res = await fetch('/api/admin/orders/ship', {
+            const res = await fetch(withBasePath('/api/admin/orders/ship'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

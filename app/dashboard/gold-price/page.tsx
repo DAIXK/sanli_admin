@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Card, Form, InputNumber, Button, Typography, Space, Alert } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 
+import { withBasePath } from '@/lib/basePath';
+
 const { Title, Paragraph, Text } = Typography;
 
 export default function GoldPricePage() {
@@ -19,7 +21,7 @@ export default function GoldPricePage() {
 
     async function fetchPrice() {
         try {
-            const res = await fetch('/api/gold-price');
+            const res = await fetch(withBasePath('/api/gold-price'));
             if (res.ok) {
                 const data = await res.json();
                 form.setFieldsValue({ price: data.price });
@@ -36,7 +38,7 @@ export default function GoldPricePage() {
         setSaving(true);
         setMessage(null);
         try {
-            const res = await fetch('/api/gold-price', {
+            const res = await fetch(withBasePath('/api/gold-price'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ price: Number(values.price) }),
