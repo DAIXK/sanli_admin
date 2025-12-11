@@ -31,6 +31,7 @@ model Tab {
   maxBeads   Int      @map("max_beads")
   model      String
   createdAt  DateTime @default(now()) @map("created_at")
+  order      Int      @default(0) @map("order")
   beads      Bead[]
 
   @@map("tabs")

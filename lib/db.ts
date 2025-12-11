@@ -20,6 +20,7 @@ export interface Tab {
   maxBeads: number;
   model: string;
   createdAt: string;
+  order: number;
 }
 
 export interface Bead {
@@ -115,6 +116,7 @@ const mapTab = (t: any): Tab => ({
   maxBeads: t.maxBeads,
   model: t.model,
   createdAt: t.createdAt?.toISOString?.() ?? t.createdAt,
+  order: t.order ?? 0,
 });
 
 const mapBead = (b: any): Bead => ({
@@ -227,20 +229,30 @@ export const db = {
   },
   tab: {
     findMany: async () => {
-      const tabs = await prisma.tab.findMany({ orderBy: { createdAt: 'desc' } });
+      const tabs = await prisma.tab.findMany({ orderBy: [{ order: 'asc' }, { createdAt: 'desc' }] });
       return tabs.map(mapTab);
     },
-    create: async (tab: Omit<Tab, 'id' | 'createdAt'>) => {
-      const created = await prisma.tab.create({ data: tab });
+    create: async (tab: Omit<Tab, 'id' | 'createdAt' | 'order'>) => {
+      const created = await prisma.tab.create({ data: { ...tab, order: 0 } });
       return mapTab(created);
     },
-    update: async (id: string, updates: Partial<Omit<Tab, 'id' | 'createdAt'>>) => {
+    update: async (id: string, updates: Partial<Omit<Tab, 'id' | 'createdAt' | 'order'>>) => {
       const updated = await prisma.tab.update({ where: { id }, data: updates });
       return mapTab(updated);
     },
     delete: async (id: string) => {
       await prisma.bead.deleteMany({ where: { tabId: id } });
       await prisma.tab.delete({ where: { id } });
+    },
+    reorder: async (orderedIds: string[]) => {
+      await prisma.$transaction(
+        orderedIds.map((id, idx) =>
+          prisma.tab.update({
+            where: { id },
+            data: { order: idx + 1 },
+          })
+        )
+      );
     },
   },
   bead: {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button, Table, Tag, Switch, Space, Modal, Form, Input, InputNumber, Upload, Typography, message } from 'antd';
-import { PlusOutlined, UploadOutlined, EditOutlined, DeleteOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import { PlusOutlined, UploadOutlined, EditOutlined, DeleteOutlined, EyeOutlined, EyeInvisibleOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import type { RcFile } from 'antd/es/upload';
 
 import { withBasePath } from '@/lib/basePath';
@@ -143,6 +143,31 @@ export default function TabsPage() {
         });
     }
 
+    async function handleMove(index: number, direction: number) {
+        if (loading) return;
+        const newTabs = [...tabs];
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= newTabs.length) return;
+
+        // Swap locally
+        [newTabs[index], newTabs[targetIndex]] = [newTabs[targetIndex], newTabs[index]];
+        setTabs(newTabs);
+
+        // Save order
+        try {
+            const ids = newTabs.map(t => t.id);
+            await fetch(withBasePath('/api/tabs/reorder'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order: ids }),
+            });
+        } catch (error) {
+            console.error('Reorder failed', error);
+            message.error('排序保存失败');
+            fetchTabs(); // revert
+        }
+    }
+
     const columns = [
         {
             title: '名称',
@@ -181,9 +206,21 @@ export default function TabsPage() {
         {
             title: '操作',
             key: 'actions',
-            width: 180,
-            render: (_: any, record: Tab) => (
+            width: 240,
+            render: (_: any, record: Tab, index: number) => (
                 <Space>
+                    <Button
+                        size="small"
+                        icon={<ArrowUpOutlined />}
+                        disabled={index === 0}
+                        onClick={() => handleMove(index, -1)}
+                    />
+                    <Button
+                        size="small"
+                        icon={<ArrowDownOutlined />}
+                        disabled={index === tabs.length - 1}
+                        onClick={() => handleMove(index, 1)}
+                    />
                     <Button size="small" icon={<EditOutlined />} onClick={() => startEdit(record)}>
                         编辑
                     </Button>
